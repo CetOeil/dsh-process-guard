@@ -1,0 +1,4 @@
+# Normalize text files to LF in the repository, on every platform.
+# This package is developed on Windows and published to a POSIX-oriented
+# ecosystem; pinning the ending keeps diffs and published artifacts identical.
+* text=auto eol=lf

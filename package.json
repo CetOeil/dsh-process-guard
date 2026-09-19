@@ -1,0 +1,50 @@
+{
+  "name": "dsh-process-guard",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness bundle that refuses shell commands terminating browsers or the harness's own host processes by image name.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "docs"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "guard",
+    "safety",
+    "process",
+    "windows",
+    "chrome"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.1.0-rc.6"
+  },
+  "scripts": {
+    "verify": "node scripts/check-bundle.mjs",
+    "test": "node --test test/",
+    "test:spec": "node --test --test-reporter=spec test/",
+    "test:no-isolation": "node --test --test-isolation=none --test-reporter=spec test/matcher.test.js test/plugin.test.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/dsh-process-guard.git"
+  },
+  "bugs": "https://github.com/OWNER/dsh-process-guard/issues",
+  "homepage": "https://github.com/OWNER/dsh-process-guard#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

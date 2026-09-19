@@ -1,0 +1,14 @@
+# dsh-process-guard bundle layer for DeepSeek Harness.
+#
+# Installed with:
+#   dsh plugin --profile web add dsh-process-guard
+#
+# The row is referenced by package name (not a relative source path) so Node's
+# module resolution finds the installed package inside the profile's
+# node_modules. No `config:` block ships here on purpose: the plugin's built-in
+# defaults are the safe ones, and a row that restates them would go stale. To
+# override, copy this row into your own profile cordis.patch.yml and add a
+# `config:` block — see examples/override.cordis.patch.yml.
+- insert:
+    - id: process-guard
+      name: dsh-process-guard

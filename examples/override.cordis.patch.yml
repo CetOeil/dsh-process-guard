@@ -1,0 +1,36 @@
+# Example: override the guard's defaults in your own profile.
+#
+# Copy the row below into $DSH_HOME/profiles/<name>/cordis.patch.yml — the
+# profile's own patch layer is applied AFTER every bundle layer, so it wins.
+# Patches replace a row's entire `config` value rather than deep-merging keys,
+# so restate every key you want to keep.
+#
+# Then confirm composition without booting:
+#   dsh --profile web --dump-config
+- id: process-guard
+  name: dsh-process-guard
+  config:
+    # Route flagged commands to the approval prompt instead of refusing them
+    # outright. Useful while tuning, or if you routinely close your own browser
+    # from a session: 'deny' | 'ask'.
+    mode: ask
+    # Inspect only these tools' `command` argument.
+    tools:
+      - pwsh
+      - bash
+    # Add to the built-in list (browsers plus the harness host tree). Replace it
+    # entirely if your setup differs — e.g. add a portable browser build.
+    protectedImages:
+      - chrome
+      - msedge
+      - msedgewebview2
+      - firefox
+      - node
+      - pwsh
+      - conhost
+      - windowsterminal
+    # Keep the documented safe pattern allowed: a filter that narrows to your own
+    # headless instance or --user-data-dir.
+    safeFilterAllows: true
+    # Contribute the system-prompt section that states the rule up front.
+    announce: true
