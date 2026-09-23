@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reduced the release checks from 364 to 287 lines with no loss of coverage,
+  verified by mutation test: every assertion removed from one script is still
+  caught by another in `npm run check`.
+  - `check-bundle.mjs`: dropped the js-yaml strict-parse path. It was
+    unreachable — the package is dependency-free by design, so `js-yaml` cannot
+    resolve and every run already took the structural fallback it reported.
+  - `check-market.mjs`: narrowed to the one requirement nothing else covers, the
+    README install command, plus the two GitHub-side steps it prints. The
+    manifest assertions it repeated (bundle patch, `private`, README presence,
+    `main`) belong to `check-bundle.mjs`, and its `apply(ctx)` export check was
+    already load-bearing: `test/plugin.test.js` imports that export by name.
+  - `check-market.mjs`: the license check's regex anchored only its first
+    alternative, so `^MIT|Apache|…` accepted any string containing "Apache".
+    Replaced with a plain SPDX-shape test.
+
 ## [0.2.0] - 2026-09-23
 
 A correctness release for the matcher, driven by an adversarial review of

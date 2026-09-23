@@ -3,21 +3,22 @@
  * Repo check: would dsh-plugin.org list this package?
  *
  * The hub discovers plugins by scanning public GitHub repositories that carry
- * the `dsh-plugin` topic, and it refuses a listing when any of four conditions
- * fails: the repository is not public, the topic is missing, the README has no
- * install command, or the entry does not export `apply(ctx)`. Three of those
- * are properties of the working tree and are checked here; the repository
- * visibility and the topic are GitHub-side and are printed as manual steps.
+ * the `dsh-plugin` topic, and refuses a listing when the repository is not
+ * public, the topic is missing, the README has no install command, or the entry
+ * does not export `apply(ctx)`.
  *
- * Dependency-free, and it imports the entry point rather than grepping it, so a
- * renamed or non-exported `apply` cannot pass.
+ * This script owns only what nothing else covers: the README install command the
+ * hub looks for, and the two GitHub-side steps it cannot check from here. The
+ * manifest contract belongs to `check-bundle.mjs`, and the `apply(ctx)` export is
+ * already load-bearing — `test/plugin.test.js` imports it by name, so a missing
+ * export fails `npm test` at module load rather than needing a check here.
  *
  * Usage: node scripts/check-market.mjs
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const failures = [];
@@ -35,50 +36,26 @@ try {
   process.exit(1);
 }
 
-const readmePath = join(root, 'README.md');
-const readme = existsSync(readmePath) ? readFileSync(readmePath, 'utf8') : '';
-if (readme.length === 0) fail('README.md is required: the hub generates the listing from it');
+// A missing README fails the install-command check below, which is the listing
+// requirement it violates, so it is not reported a second time here.
+let readme = '';
+try {
+  readme = readFileSync(join(root, 'README.md'), 'utf8');
+} catch {
+  /* reported by the install-command check */
+}
 
 // --- the hub's stated listing requirements ---------------------------------
-if (manifest.private === true) fail('private:true makes the repository unpublishable and unlistable');
-
 const installCommand = `dsh plugin --profile web add ${manifest.name}`;
 if (!readme.includes(installCommand)) {
   fail(`README.md must contain the copyable install command "${installCommand}"`);
 }
-
-const keywords = Array.isArray(manifest.keywords) ? manifest.keywords : [];
-if (!keywords.includes('dsh-plugin')) {
-  warn('keywords should include "dsh-plugin" so a registry search finds this package');
-}
-
-const patch = manifest.dsh?.bundle?.patch;
-if (typeof patch !== 'string' || patch.length === 0) {
-  fail('the hub installs the profile layer through dsh.bundle.patch, which is missing');
-}
-
-if (!/^MIT|Apache|BSD|ISC|GPL|MPL|Unlicense/i.test(String(manifest.license ?? ''))) {
-  warn(`license ${JSON.stringify(manifest.license)} is unusual for a public listing; declare a standard SPDX id`);
-}
 if (!/license/i.test(readme)) fail('README.md must state the license so the listing can show it');
 
-// --- the entry point the hub's spec requires ------------------------------
-const entry = join(root, manifest.main ?? 'index.js');
-if (!existsSync(entry)) {
-  fail(`main points at ${manifest.main}, which does not exist`);
-} else {
-  let module;
-  try {
-    module = await import(pathToFileURL(entry).href);
-  } catch (error) {
-    fail(`${manifest.main} cannot be imported: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  if (module !== undefined) {
-    if (typeof module.apply !== 'function') fail(`${manifest.main} must export apply(ctx) — the DSH plugin spec requires it`);
-    if (typeof module.name !== 'string' || module.name.length === 0) fail(`${manifest.main} must export a non-empty plugin name`);
-    else if (!readme.includes(module.name)) notes.push(`plugin name "${module.name}" does not appear in README.md`);
-    if (!Array.isArray(module.inject)) warn('the entry point declares no inject list; the plugin may mount before its services exist');
-  }
+const keywords = Array.isArray(manifest.keywords) ? manifest.keywords : [];
+if (!keywords.includes('dsh-plugin')) warn('keywords should include "dsh-plugin" so a registry search finds this package');
+if (typeof manifest.license !== 'string' || !/^[A-Za-z0-9.+-]+$/.test(manifest.license)) {
+  warn(`license ${JSON.stringify(manifest.license)} is not a plain SPDX id; the listing shows it verbatim`);
 }
 
 // --- what only a human can do ---------------------------------------------

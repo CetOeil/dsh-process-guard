@@ -164,7 +164,7 @@ Local checks in this repository:
 npm run check                     # tests + bundle + listing readiness + exact npm artifact
 npm test                          # matcher corpus + plugin registration
 npm run test:no-isolation         # constrained sandboxes that block piped children
-npm run verify:market             # the dsh-plugin.org listing requirements, plus manual steps
+npm run verify:market             # the README install command the hub looks for, plus manual steps
 ```
 
 A sandbox that blocks piped child processes (both `npm test`, which spawns one
@@ -258,9 +258,13 @@ Listing on [dsh-plugin.org](https://dsh-plugin.org) is **automatic and needs no
 pull request**: the hub periodically scans public GitHub repositories carrying
 the `dsh-plugin` topic, then reviews each one by hand. Its four stated
 requirements are a public repository, that topic, a README containing
-`dsh plugin --profile web add <package>`, and an `apply(ctx)` export —
-`npm run verify:market` checks the last two and prints the two GitHub-side steps
-it cannot check from here. See `docs/PUBLISHING.md` for the full checklist.
+`dsh plugin --profile web add <package>`, and an `apply(ctx)` export.
+
+`npm run verify:market` owns the install command — the requirement nothing else
+covers — and prints the two GitHub-side steps it cannot check from here. The
+manifest half of the contract is `npm run verify`, and the `apply(ctx)` export
+needs no check: `test/plugin.test.js` imports it by name, so losing it fails
+`npm test`. See `docs/PUBLISHING.md` for the full checklist.
 
 The curated [`awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)
 list is a **separate** registry with a pull-request flow; it is optional. Its CI

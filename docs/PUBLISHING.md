@@ -13,16 +13,19 @@ until a reviewer checks compatibility.
 
 Its four stated requirements, from <https://dsh-plugin.org/submit>:
 
-| Requirement | State in this repository |
-|---|---|
-| Public, open-source GitHub repository | public at <https://github.com/CetOeil/dsh-process-guard> |
-| The GitHub topic `dsh-plugin` | **must be added by hand** — see below |
-| README with an install command | `dsh plugin --profile web add dsh-process-guard` |
-| An exported `apply(ctx)` module | `lib/index.js` exports `apply`, `name`, and `inject` |
+| Requirement | State in this repository | Checked by |
+|---|---|---|
+| Public, open-source GitHub repository | public at <https://github.com/CetOeil/dsh-process-guard> | GitHub-side |
+| The GitHub topic `dsh-plugin` | added | GitHub-side |
+| README with an install command | `dsh plugin --profile web add dsh-process-guard` | `npm run verify:market` |
+| An exported `apply(ctx)` module | `lib/index.js` exports `apply`, `name`, and `inject` | `npm test` |
 
-`npm run verify:market` checks everything in that table that a working tree can
-answer, and prints the two GitHub-side steps it cannot. Run it before tagging a
-release.
+Each requirement is checked exactly once, by whichever check owns it:
+`verify:market` asserts the README install command (the requirement nothing else
+covers) and prints the two GitHub-side steps it cannot reach; the `apply(ctx)`
+export needs no dedicated check because `test/plugin.test.js` imports it by name,
+so losing it fails `npm test` at module load. Run `npm run check` before tagging
+a release.
 
 The two manual steps, both on the repository's GitHub page:
 

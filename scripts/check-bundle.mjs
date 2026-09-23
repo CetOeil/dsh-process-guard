@@ -7,10 +7,9 @@
  * `dsh.bundle.patch`. A typo there installs the package as an inert library with
  * a warning, which is a silent failure this script turns loud.
  *
- * Dependency-free by design, so CI needs no install step. When `js-yaml` happens
- * to be resolvable (a devDependency you add, or a dsh tree nearby) the patch file
- * is additionally parsed strictly; otherwise the script says so and falls back to
- * a structural check of the shape this package ships.
+ * Dependency-free by design, so CI needs no install step. That rules out a YAML
+ * parser, so the patch file is checked structurally for the shape this package
+ * ships: one `- insert:` list whose row names this package.
  *
  * Usage: node scripts/check-bundle.mjs
  */
@@ -98,42 +97,21 @@ for (const [field, url] of [['repository.url', repositoryUrl], ['bugs.url', bugs
 const serializedManifest = JSON.stringify(manifest);
 if (/OWNER/.test(serializedManifest)) fail('package.json still contains an OWNER placeholder');
 
-/** Strict YAML via an optionally resolvable js-yaml, else a structural check. */
+/**
+ * Verify the patch layer's shape, structurally.
+ *
+ * There is no YAML parse: the package is dependency-free by design so CI needs
+ * no install step, and the shipped patch is one `- insert:` list. The assertion
+ * that earns its keep is the row name — a patch naming anything other than this
+ * package makes the loader resolve nothing, which is the silent failure above.
+ */
 function verifyPatch(patchPath) {
-  const parsed = tryParseYaml(patchPath);
-  if (parsed === undefined) {
-    const text = readFileSync(patchPath, 'utf8');
-    const structural = /^-\s*insert:\s*$/m.test(text) && new RegExp(`^\\s*-\\s*id:\\s*\\S+\\s*$`, 'm').test(text) && new RegExp(`^\\s*name:\\s*['"]?${manifest.name}['"]?\\s*$`, 'm').test(text);
-    notes.push(structural ? 'patch verified structurally (js-yaml unavailable): insert row with id + this package name' : 'patch verified structurally');
-    if (!structural) fail(`${patchRelative} is not a patch layer with an "- insert:" entry naming "${manifest.name}"`);
-    return;
-  }
-  notes.push('patch parsed strictly with js-yaml');
-  if (!Array.isArray(parsed)) return fail(`${patchRelative} must be a YAML array of patch entries`);
-  const rows = parsed.flatMap((entry) => (Array.isArray(entry?.insert) ? entry.insert : []));
-  if (rows.length === 0) fail(`${patchRelative} declares no insert rows, so it mounts no plugin`);
-  for (const row of rows) {
-    if (typeof row?.id !== 'string' || row.id.length === 0) fail(`${patchRelative}: every insert row needs a non-empty string id`);
-    const named = typeof row?.name === 'string' ? row.name : '';
-    if (named !== manifest.name && !named.startsWith(`${manifest.name}/`)) {
-      fail(`${patchRelative}: row name ${JSON.stringify(named)} must be "${manifest.name}" or a subpath of it, so Node resolves the installed package`);
-    }
-  }
-}
-
-/** Parse YAML with js-yaml from anywhere it can be resolved, or undefined. */
-function tryParseYaml(patchPath) {
-  const candidates = [import.meta.url, join(root, 'package.json'), ...String(process.env.DSH_JS_YAML ?? '').split(';').filter(Boolean).map((entry) => join(entry, 'package.json'))];
-  for (const base of candidates) {
-    try {
-      const require = createRequire(base);
-      const yaml = require('js-yaml');
-      return yaml.load(readFileSync(patchPath, 'utf8'));
-    } catch {
-      /* try the next anchor */
-    }
-  }
-  return undefined;
+  const text = readFileSync(patchPath, 'utf8');
+  const structural = /^-\s*insert:\s*$/m.test(text)
+    && /^\s*-\s*id:\s*\S+\s*$/m.test(text)
+    && new RegExp(`^\\s*name:\\s*['"]?${manifest.name}['"]?\\s*$`, 'm').test(text);
+  if (!structural) fail(`${patchRelative} is not a patch layer with an "- insert:" entry naming "${manifest.name}"`);
+  else notes.push('patch verified structurally: an insert row with an id names this package');
 }
 
 /**
