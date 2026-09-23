@@ -226,11 +226,17 @@ two-view masking and the command-position check the matcher depends on.
 
 The release workflow publishes on a GitHub Release whose tag exactly matches
 `v<package.json version>`. Create a protected `npm` environment and add its
-`NPM_TOKEN` secret, then publish release `v0.2.0`. For a manual first publish:
+`NPM_TOKEN` secret, then publish release `v0.2.0`. That is also the only path
+that produces a provenance attestation: `--provenance` is a cloud-CI feature
+("when publishing from a supported cloud CI/CD system", per `npm publish --help`),
+and the workflow already sets `id-token: write` for it.
+
+For a manual first publish from a workstation, drop the flag — a local publish
+cannot attest:
 
 ```sh
 npm run check
-npm publish --access public --provenance
+npm publish --access public
 ```
 
 The npm name `dsh-process-guard` was unclaimed when this package was prepared.

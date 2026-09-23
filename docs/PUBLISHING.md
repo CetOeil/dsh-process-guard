@@ -75,15 +75,37 @@ Listing on either registry does not require it, but the README's install line
 does.
 
 ```sh
-npm run check                                  # tests, bundle, listing readiness, artifact audit
-npm publish --access public --provenance
+npm run check                     # tests, bundle, listing readiness, artifact audit
+npm publish --access public       # add --provenance only from CI
 ```
 
-`--provenance` needs a public repository and npm's OIDC flow; run it from CI (the
-`publish` workflow does, on a GitHub Release whose tag is exactly
-`v<package.json version>`) or from a logged-in machine. The name
-`dsh-process-guard` was unclaimed on the public registry when this package was
-prepared.
+`--provenance` is a cloud-CI feature — `npm publish --help` describes it as
+"when publishing from a supported cloud CI/CD system" — so the `publish` workflow
+is what produces an attestation, on a GitHub Release whose tag is exactly
+`v<package.json version>`. A local publish cannot attest, and adding the flag
+there only invites a confusing failure.
+
+The name `dsh-process-guard` was unclaimed on the public registry when this
+package was prepared, so `npm view dsh-process-guard` returning **404** is the
+expected pre-publish state, not a fault. The same 404 after a publish means
+something else — see the note in §4.
+
+## 4. Reading a 404 from the npm registry
+
+The code has several meanings, and only one of them is a problem.
+
+| When | Meaning | Action |
+|---|---|---|
+| `npm view <name>` before publishing | The name is unclaimed | Publish; this is the green light |
+| `npm publish` | npm masks authorization failures as 404 | Treat as "not authorized", not "not found" — check `npm whoami`, token scope, and 2FA |
+| `npm view <name>` right after publishing | Read-through cache or propagation | Wait a minute and retry |
+| `npm install <name>` / `dsh plugin add <name>` | The package is genuinely absent, or `.npmrc` points at a different registry | `npm config get registry` should be `https://registry.npmjs.org/` |
+
+The `npm publish` row is the one that costs an afternoon. An unauthenticated or
+under-scoped token, or a missing one-time password on an account with
+"auth-and-writes" 2FA, surfaces as `E404 ... could not be found or you do not
+have permission to access it`. Newer npm returns a distinct `EOTP` for the 2FA
+case, but the 404 wording still appears. Never read it as "the name is taken".
 
 ## Release checklist
 
