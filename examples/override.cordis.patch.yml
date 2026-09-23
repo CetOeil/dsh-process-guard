@@ -14,23 +14,17 @@
     # outright. Useful while tuning, or if you routinely close your own browser
     # from a session: 'deny' | 'ask'.
     mode: ask
-    # Inspect only these tools' `command` argument.
-    tools:
-      - pwsh
-      - bash
-    # Add to the built-in list (browsers plus the harness host tree). Replace it
-    # entirely if your setup differs — e.g. add a portable browser build.
-    protectedImages:
-      - chrome
-      - msedge
-      - msedgewebview2
-      - firefox
-      - node
-      - pwsh
-      - conhost
-      - windowsterminal
-    # Keep the documented safe pattern allowed: a filter that narrows to your own
-    # headless instance or --user-data-dir.
-    safeFilterAllows: true
+    # Extend the built-in shell tool names. Use `tools` only when you intend to
+    # replace the defaults entirely.
+    additionalTools:
+      - remote_shell
+    # Extend the cross-platform browser and harness host list. Use
+    # `protectedImages` only when you intend to replace the defaults entirely.
+    additionalProtectedImages:
+      - custombrowser
+    # The default is false: command-line text is not proof that you own a
+    # process. Opt in only if you accept the positive --headless /
+    # --user-data-dir CommandLine filter as sufficient narrowing.
+    safeFilterAllows: false
     # Contribute the system-prompt section that states the rule up front.
     announce: true

@@ -18,11 +18,12 @@ as `interrupted` with a tool result of "outcome unknown".
 Never run these forms:
 
 - `Get-Process chrome,msedge -ErrorAction SilentlyContinue | Stop-Process -Force`
-- `Stop-Process -Name <image>` — for `chrome`, `msedge`, `firefox`, `brave`, `vivaldi`, `opera`, `msedgewebview2`
-- `taskkill /IM chrome.exe /F`, `wmic process where "name='chrome.exe'" delete`, `pskill chrome`
+- `Stop-Process -Name <image>` (including its `spps` / `kill` aliases) — for browsers such as `chrome`, `msedge`, `firefox`, `chromium`, `google-chrome`, `brave`, `vivaldi`, `opera`, and `msedgewebview2`
+- `taskkill /IM chrome.exe /F`, `wmic process where "name='chrome.exe'" delete`, `pskill chrome`, `pkill chrome`, or `killall chrome`
 - the same shape against `node`, `pwsh`, `powershell`, `conhost`, `WindowsTerminal` — `node` is the
   harness server itself, and the terminal hosts may be the harness's own window
 - an unfiltered `Get-Process | Stop-Process -Force`
+- wildcard or process-group forms such as `Stop-Process -Name '*'`, `taskkill /IM *`, or `kill -9 0`
 
 Use these instead:
 

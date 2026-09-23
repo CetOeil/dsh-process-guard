@@ -17,7 +17,7 @@
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -42,8 +42,9 @@ const patchRelative = manifest.dsh?.bundle?.patch;
 if (typeof patchRelative !== 'string' || patchRelative.length === 0) {
   fail('package.json must declare dsh.bundle.patch — without it `dsh plugin add` installs this as a plain dependency, not a profile layer');
 } else {
-  const patchPath = join(root, patchRelative);
-  if (!existsSync(patchPath)) fail(`dsh.bundle.patch points at ${patchRelative}, which does not exist`);
+  const patchPath = resolve(root, patchRelative);
+  if (patchPath !== root && !patchPath.startsWith(`${root}${sep}`)) fail(`dsh.bundle.patch must stay inside the package, got ${patchRelative}`);
+  else if (!existsSync(patchPath)) fail(`dsh.bundle.patch points at ${patchRelative}, which does not exist`);
   else verifyPatch(patchPath);
 }
 
@@ -57,16 +58,45 @@ for (const [label, relative] of [['main', manifest.main], ...Object.entries(mani
 
 // --- published file set ---------------------------------------------------
 const published = new Set(manifest.files ?? []);
-for (const required of ['lib', patchRelative?.replace(/^\.\//, '')]) {
+for (const required of ['lib', 'docs', 'examples', 'CHANGELOG.md', 'SECURITY.md', patchRelative?.replace(/^\.\//, '')]) {
   if (required === undefined) continue;
-  if (!published.has(required)) warn(`files[] does not list "${required}"; npm omits it only if it is also unreferenced`);
+  if (!published.has(required)) fail(`files[] must list "${required}" so the documented package artifact is complete`);
 }
 
 // --- metadata a harness host and the market read --------------------------
-if (typeof manifest.engines?.dsh !== 'string') warn('engines.dsh is missing; the plugin market uses it to show host compatibility');
+if (typeof manifest.name !== 'string' || !/^(@[^/]+\/)?dsh[-\w]*$/i.test(manifest.name)) fail('name must be an npm-safe DSH package name');
+if (typeof manifest.version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(manifest.version)) fail('version must be a valid publishable semver');
+if (typeof manifest.description !== 'string' || manifest.description.trim().length === 0) fail('description is required');
+if (typeof manifest.engines?.dsh !== 'string') warn('engines.dsh is missing; it records the minimum host this plugin was verified against');
+else {
+  // No tool evaluates a non-standard engine key — npm and pnpm only check
+  // `node`/`npm` — and node-semver cannot express "any prerelease at or above
+  // X", because a prerelease comparator only admits prereleases of its own
+  // version tuple. `>=0.1.0-rc.6` alone therefore reports the verified host
+  // (0.1.5-rc.3) as incompatible. The field is documentation; the enforced gate
+  // is the runtime check in lib/index.js.
+  const verified = semverSatisfies('0.1.5-rc.3', manifest.engines.dsh);
+  if (verified === false) warn(`engines.dsh ${JSON.stringify(manifest.engines.dsh)} excludes 0.1.5-rc.3, the host this plugin is verified against`);
+  else if (verified === true) notes.push(`engines.dsh ${JSON.stringify(manifest.engines.dsh)} admits the verified host 0.1.5-rc.3`);
+  else notes.push('engines.dsh not evaluated (node-semver is not resolvable)');
+}
 if (typeof manifest.engines?.node !== 'string') warn('engines.node is missing');
-if (manifest.license === undefined) warn('license is missing');
-if (/(^|\/)OWNER(\/|$)/.test(String(manifest.repository?.url ?? ''))) warn('repository.url still contains the OWNER placeholder — replace it before publishing');
+if (manifest.license === undefined || !existsSync(join(root, 'LICENSE'))) fail('license metadata and a LICENSE file are required');
+if (!existsSync(join(root, 'README.md'))) fail('README.md is required');
+if (manifest.private === true) fail('private:true prevents publication');
+if (manifest.publishConfig?.access !== 'public') fail('publishConfig.access must be "public"');
+if (typeof manifest.scripts?.prepublishOnly !== 'string') fail('prepublishOnly must run release checks before npm publish');
+
+const repositoryUrl = String(typeof manifest.repository === 'string' ? manifest.repository : manifest.repository?.url ?? '');
+const bugsUrl = String(typeof manifest.bugs === 'string' ? manifest.bugs : manifest.bugs?.url ?? '');
+const homepageUrl = String(manifest.homepage ?? '');
+for (const [field, url] of [['repository.url', repositoryUrl], ['bugs.url', bugsUrl], ['homepage', homepageUrl]]) {
+  if (!/^https?:\/\/github\.com\//.test(url.replace(/^git\+/, ''))) fail(`${field} must point at the canonical GitHub repository`);
+  if (/OWNER/i.test(url)) fail(`${field} still contains the OWNER placeholder`);
+}
+
+const serializedManifest = JSON.stringify(manifest);
+if (/OWNER/.test(serializedManifest)) fail('package.json still contains an OWNER placeholder');
 
 /** Strict YAML via an optionally resolvable js-yaml, else a structural check. */
 function verifyPatch(patchPath) {
@@ -99,6 +129,33 @@ function tryParseYaml(patchPath) {
       const require = createRequire(base);
       const yaml = require('js-yaml');
       return yaml.load(readFileSync(patchPath, 'utf8'));
+    } catch {
+      /* try the next anchor */
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Evaluate `engines.dsh` with node-semver when it is resolvable (npm ships it),
+ * or undefined when it is not. The engine range is documentation rather than an
+ * enforced gate — no tool reads a non-standard engine key — so an unresolvable
+ * semver is a note, never a failure.
+ *
+ * @param version - the host version this package was verified against.
+ * @param range - the declared `engines.dsh` range.
+ * @returns true/false from node-semver, or undefined when it cannot be loaded.
+ */
+function semverSatisfies(version, range) {
+  const candidates = [
+    import.meta.url,
+    join(root, 'package.json'),
+    join(dirname(process.execPath), 'node_modules', 'npm', 'node_modules', 'package.json'),
+    ...String(process.env.DSH_SEMVER ?? '').split(';').filter(Boolean).map((entry) => join(entry, 'package.json'))
+  ];
+  for (const base of candidates) {
+    try {
+      return createRequire(base)('semver').satisfies(version, range);
     } catch {
       /* try the next anchor */
     }

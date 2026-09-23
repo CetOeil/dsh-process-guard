@@ -11,9 +11,11 @@ Do not rely on it to contain untrusted code. Do rely on it to stop the realistic
 accident: an agent reaching for `Get-Process chrome | Stop-Process -Force` as
 cleanup because the harness's own GUI happens to be a Chrome window.
 
-`README.md` lists the known bypasses (encoded commands, scripts written in one
-call and run in the next, P/Invoke, renamed binaries, uninspected tools). If you
-find one that is not listed, that is a documentation gap worth reporting.
+`README.md` lists the known bypasses (generated or separately stored commands,
+native process APIs, remote execution, renamed binaries, and uninspected tools).
+Literal PowerShell `-EncodedCommand` values are decoded and inspected, and a
+literal selector assigned to a variable is resolved. If you find a bypass that is
+not listed, that is a documentation gap worth reporting.
 
 ## Reporting
 
@@ -25,4 +27,4 @@ a boundary" framing honest.
 False positives are the higher-priority class of report. A guard that refuses
 legitimate work gets uninstalled, and an uninstalled guard protects nothing.
 Please include the exact command, the expected verdict, and the observed
-`process-guard: blocked — …` reason line.
+`process-guard: blocked - …` reason line.

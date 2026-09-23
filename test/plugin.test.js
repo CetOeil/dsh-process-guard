@@ -123,16 +123,14 @@ test('announce adds a system-prompt section unless switched off', () => {
   assert.equal(off.sections.length, 0);
 });
 
-test('a host without ctx.tools.guard() is reported loudly and never throws', () => {
-  const { ctx, logs } = stubContext({ withGuard: false });
-  assert.doesNotThrow(() => apply(ctx, {}));
-  assert.ok(logs.some(([level, message]) => level === 'error' && /INACTIVE/.test(message)));
+test('a host without ctx.tools.guard() fails closed', () => {
+  const { ctx } = stubContext({ withGuard: false });
+  assert.throws(() => apply(ctx, {}), /ctx\.tools\.guard\(\) is unavailable/);
 });
 
-test('a host without ctx.on() cannot run ask mode', () => {
-  const { ctx, logs } = stubContext({ withWaterfall: false });
-  apply(ctx, { mode: 'ask' });
-  assert.ok(logs.some(([level, message]) => level === 'error' && /INACTIVE/.test(message)));
+test('a host without ctx.on() fails closed in ask mode', () => {
+  const { ctx } = stubContext({ withWaterfall: false });
+  assert.throws(() => apply(ctx, { mode: 'ask' }), /ctx\.on\(\) is unavailable/);
 });
 
 test('enabled:false registers nothing', () => {
@@ -146,7 +144,9 @@ test('normalizeConfig warns instead of silently accepting typos', () => {
   const warnings = [];
   const config = normalizeConfig({ mode: 'block', tools: 'pwsh', protctedImages: ['chrome'] }, (message) => warnings.push(message));
   assert.equal(config.mode, 'deny');
-  assert.deepEqual(config.tools, ['pwsh', 'bash', 'terminal']);
+  assert.ok(config.tools.includes('pwsh'));
+  assert.ok(config.tools.includes('bash'));
+  assert.ok(config.tools.includes('terminal'));
   assert.equal(warnings.length, 3, 'unknown key, non-array tools, invalid mode');
   assert.ok(warnings.some((message) => /unknown config key "protctedImages"/.test(message)));
   assert.ok(warnings.some((message) => /config.mode must be/.test(message)));
@@ -156,6 +156,36 @@ test('defaults protect the GUI browser and the harness server', () => {
   const config = normalizeConfig(undefined);
   assert.equal(config.enabled, true);
   assert.equal(config.mode, 'deny');
+  assert.equal(config.safeFilterAllows, false);
   assert.ok(config.protectedImages.includes('chrome'));
   assert.ok(config.protectedImages.includes('node'));
+});
+
+test('config validates booleans and refuses empty safety lists', () => {
+  const warnings = [];
+  const config = normalizeConfig({
+    enabled: 'false',
+    announce: 0,
+    safeFilterAllows: 'true',
+    tools: [],
+    protectedImages: ['', null]
+  }, (message) => warnings.push(message));
+  assert.equal(config.enabled, true);
+  assert.equal(config.announce, true);
+  assert.equal(config.safeFilterAllows, false);
+  assert.ok(config.tools.length > 0);
+  assert.ok(config.protectedImages.includes('chrome'));
+  assert.ok(warnings.length >= 6);
+});
+
+test('additionalProtectedImages extends and normalizes the built-in list', () => {
+  const config = normalizeConfig({ additionalProtectedImages: ['CustomBrowser.EXE', ' custombrowser '] });
+  assert.ok(config.protectedImages.includes('chrome'));
+  assert.equal(config.protectedImages.filter((image) => image === 'custombrowser').length, 1);
+});
+
+test('additionalTools extends the default inspected tool set', () => {
+  const config = normalizeConfig({ additionalTools: ['remote_shell', 'remote_shell'] });
+  assert.ok(config.tools.includes('pwsh'));
+  assert.equal(config.tools.filter((tool) => tool === 'remote_shell').length, 1);
 });
