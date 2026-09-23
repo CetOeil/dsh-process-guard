@@ -86,6 +86,12 @@ From a checkout, install the directory instead of the registry name:
 dsh plugin --profile web add /path/to/dsh-process-guard
 ```
 
+A git URL works too, and needs no build: the repository root *is* the package.
+
+```sh
+dsh plugin --profile web add git+https://github.com/CetOeil/dsh-process-guard.git
+```
+
 The plugin has **no runtime dependencies**, so installation needs no build step
 and no pnpm `allowBuilds` authorization. It requires a harness whose `dsh-tools`
 exposes `ctx.tools.guard()`; this release is verified against `dsh` 0.1.5-rc.3,
@@ -96,6 +102,13 @@ only prereleases of its own version tuple, which is why the declared range lists
 `0.1.5-rc.1` explicitly. The **enforced** gate is the runtime check: on a host
 without `ctx.tools.guard()` the plugin throws at load instead of leaving an
 apparently active but ineffective guard.
+
+One pnpm 12 behaviour is worth knowing for the first days after a release: its
+supply-chain release-age gate treats a freshly published version as too new. In
+the default non-strict mode pnpm records the exception itself
+(`minimumReleaseAgeExclude` in the profile's `pnpm-workspace.yaml`) and the
+install proceeds; with `minimumReleaseAgeStrict: true` it stops at a prompt
+instead. Either way the git install above is unaffected.
 
 ## Configuration
 
