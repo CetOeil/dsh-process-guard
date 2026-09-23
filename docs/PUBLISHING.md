@@ -88,7 +88,8 @@ there only invites a confusing failure.
 The name `dsh-process-guard` was unclaimed on the public registry when this
 package was prepared, so `npm view dsh-process-guard` returning **404** is the
 expected pre-publish state, not a fault. The same 404 after a publish means
-something else — see the note in §4.
+something else — see §4. A publish that reaches the registry and is refused
+returns **403**, which is a different problem again: §5.
 
 ## 4. Reading a 404 from the npm registry
 
@@ -106,6 +107,41 @@ under-scoped token, or a missing one-time password on an account with
 "auth-and-writes" 2FA, surfaces as `E404 ... could not be found or you do not
 have permission to access it`. Newer npm returns a distinct `EOTP` for the 2FA
 case, but the 404 wording still appears. Never read it as "the name is taken".
+
+## 5. E403 on publish: the 2FA requirement
+
+A publish attempt against an unclaimed name logs two `GET 404`s (the packument
+lookup) and then a `PUT 403`:
+
+```
+http fetch GET 404 https://registry.npmjs.org/dsh-process-guard
+notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+http fetch PUT 403 https://registry.npmjs.org/dsh-process-guard
+error 403 403 Forbidden - PUT https://registry.npmjs.org/dsh-process-guard -
+  Two-factor authentication or granular access token with bypass 2fa enabled
+  is required to publish packages.
+```
+
+Read the two 404s as the name being free — they are not the failure. The `PUT`
+is. The token authenticated (a bad token gives 401), so this is not a credential
+problem; the account has 2FA and the token is not allowed to satisfy it alone.
+
+npm's own follow-up hint — "you or one of your dependencies are requesting a
+package version that is forbidden by your security policy" — is generic `E403`
+boilerplate and is unrelated. Ignore it.
+
+Either remedy from the error message works:
+
+- **Interactive, one-off:** `npm publish --access public --otp=<code>`, with the
+  code from the authenticator. npm's `otplease` wrapper is what retries with it.
+- **Durable, and required for CI:** create a **Granular Access Token** at
+  <https://www.npmjs.com/settings/~/tokens> with read-and-write permission and
+  **"Bypass 2FA" enabled**, then set it as `//registry.npmjs.org/:_authToken` in
+  `~/.npmrc` locally and as the `NPM_TOKEN` secret for the `publish` workflow.
+
+A token without the bypass permission fails the workflow with this same 403, so
+`NPM_TOKEN` must be the granular bypass-2FA token, not a classic one. npm now
+requires 2FA on the publishing account; that is not optional.
 
 ## Release checklist
 
