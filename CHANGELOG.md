@@ -108,6 +108,10 @@ protected image.
 - Documentation: `README.md`, `docs/DESIGN.md`, `docs/agents-md-snippet.md`, and
   `examples/override.cordis.patch.yml`.
 
+This version was never published to npm. The first registry release was 0.2.0,
+so `npm install dsh-process-guard@0.1.0` has nothing to resolve; the entry is
+kept because the commit it describes is in the history.
+
 [Unreleased]: https://github.com/CetOeil/dsh-process-guard/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/CetOeil/dsh-process-guard/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/CetOeil/dsh-process-guard/releases/tag/v0.1.0
+[0.2.0]: https://github.com/CetOeil/dsh-process-guard/releases/tag/v0.2.0
+[0.1.0]: https://github.com/CetOeil/dsh-process-guard/commit/62b7517
