@@ -124,13 +124,36 @@ error 403 403 Forbidden - PUT https://registry.npmjs.org/dsh-process-guard -
 
 Read the two 404s as the name being free — they are not the failure. The `PUT`
 is. The token authenticated (a bad token gives 401), so this is not a credential
-problem; the account has 2FA and the token is not allowed to satisfy it alone.
+problem.
 
 npm's own follow-up hint — "you or one of your dependencies are requesting a
 package version that is forbidden by your security policy" — is generic `E403`
 boilerplate and is unrelated. Ignore it.
 
-Either remedy from the error message works:
+### Enable 2FA first, or neither remedy is available
+
+Check the account before touching tokens:
+
+```sh
+npm profile get        # look at the "two-factor auth" line
+```
+
+If it says **disabled**, that is the whole problem, and it is circular: npm
+requires 2FA (or a token allowed to bypass it) to publish, but npm only offers
+the granular token's **"Bypass 2FA"** switch when the account already has 2FA
+enabled. Generating a new granular token without that prerequisite produces a
+token that authenticates fine and still fails the `PUT` with this exact 403 —
+which reads like a token problem and is not one.
+
+So the order is fixed:
+
+1. Enable 2FA at <https://www.npmjs.com/settings/~/profile> (authenticator app;
+   save the recovery codes). This cannot be skipped — npm does not exempt a
+   first-time publisher.
+2. Then either publish interactively with `npm publish --access public
+   --otp=<code>`, or create the bypass token for unattended use.
+
+### The two remedies, once 2FA is on
 
 - **Interactive, one-off:** `npm publish --access public --otp=<code>`, with the
   code from the authenticator. npm's `otplease` wrapper is what retries with it.
@@ -140,8 +163,7 @@ Either remedy from the error message works:
   `~/.npmrc` locally and as the `NPM_TOKEN` secret for the `publish` workflow.
 
 A token without the bypass permission fails the workflow with this same 403, so
-`NPM_TOKEN` must be the granular bypass-2FA token, not a classic one. npm now
-requires 2FA on the publishing account; that is not optional.
+`NPM_TOKEN` must be the granular bypass-2FA token, not a classic one.
 
 ## Release checklist
 
