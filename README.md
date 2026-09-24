@@ -238,19 +238,33 @@ two-view masking and the command-position check the matcher depends on.
 ## Publishing
 
 The release workflow publishes on a GitHub Release whose tag exactly matches
-`v<package.json version>`. Create a protected `npm` environment and add its
-`NPM_TOKEN` secret, then publish release `v0.2.0`. That is also the only path
-that produces a provenance attestation: `--provenance` is a cloud-CI feature
-("when publishing from a supported cloud CI/CD system", per `npm publish --help`),
-and the workflow already sets `id-token: write` for it.
+`v<package.json version>`, using **trusted publishing (OIDC)** — no npm token is
+stored anywhere. Configure the package's trusted publisher on npmjs.com (GitHub
+Actions, this repository, workflow `publish.yml`), then publish a release; the
+workflow does the rest and the attestation comes with it.
 
-For a manual first publish from a workstation, drop the flag — a local publish
-cannot attest:
+Two details make that work, and both are easy to get wrong:
+
+- `actions/setup-node` must **not** set `registry-url`. It writes an `.npmrc`
+  containing a `NODE_AUTH_TOKEN` placeholder, and that placeholder overrides
+  npm's native OIDC exchange — the job then fails on auth with nothing actually
+  wrong with the trusted publisher.
+- The job needs `id-token: write` (already set) and `--provenance` on the publish
+  command, which is what drives the exchange.
+
+For a manual publish from a workstation there is no attestation — `--provenance`
+is a cloud-CI feature ("when publishing from a supported cloud CI/CD system",
+per `npm publish --help`) — and it needs a credential npm is progressively
+retiring, so prefer the release path:
 
 ```sh
 npm run check
 npm publish --access public
 ```
+
+0.2.1 was the exception to all of this: trusted publishing cannot publish a
+package's *initial* version, so the first release used a granular access token
+instead. See `docs/PUBLISHING.md` §5 for the token traps that involves.
 
 The npm name `dsh-process-guard` was unclaimed when this package was prepared.
 

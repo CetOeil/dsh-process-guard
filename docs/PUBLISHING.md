@@ -77,22 +77,32 @@ so publishing is a prerequisite for the documented install command to work.
 Listing on either registry does not require it, but the README's install line
 does.
 
-```sh
-npm run check                     # tests, bundle, listing readiness, artifact audit
-npm publish --access public       # add --provenance only from CI
-```
+Releases go out through **trusted publishing (OIDC)**: configure the trusted
+publisher on npmjs.com for this repository and `publish.yml`, create a GitHub
+Release whose tag is exactly `v<package.json version>`, and the workflow
+publishes with an attestation. No npm token is stored.
 
-`--provenance` is a cloud-CI feature — `npm publish --help` describes it as
-"when publishing from a supported cloud CI/CD system" — so the `publish` workflow
-is what produces an attestation, on a GitHub Release whose tag is exactly
-`v<package.json version>`. A local publish cannot attest, and adding the flag
-there only invites a confusing failure.
+For a manual publish from a workstation there is no attestation — `--provenance`
+is a cloud-CI feature ("when publishing from a supported cloud CI/CD system", per
+`npm publish --help`) — and it needs a credential npm is retiring, so prefer the
+release path:
+
+```sh
+npm run check
+npm publish --access public       # no --provenance: a local publish cannot attest
+```
 
 The name `dsh-process-guard` was unclaimed on the public registry when this
 package was prepared, so `npm view dsh-process-guard` returning **404** is the
 expected pre-publish state, not a fault. The same 404 after a publish means
 something else — see §4. A publish that reaches the registry and is refused
 returns **403**, which is a different problem again: §5.
+
+**0.2.1 was the exception.** Trusted publishing cannot publish a package's
+*initial* version — npm requires the package to exist before its settings page
+can enable OIDC ([npm/cli#8544](https://github.com/npm/cli/issues/8544), still
+open) — so the first release used a granular access token. Every release from
+0.2.2 on uses OIDC and needs no token.
 
 ## 4. Reading a 404 from the npm registry
 
@@ -160,23 +170,74 @@ So the order is fixed:
 
 - **Interactive, one-off:** `npm publish --access public --otp=<code>`, with the
   code from the authenticator. npm's `otplease` wrapper is what retries with it.
-- **Durable, and required for CI:** create a **Granular Access Token** at
-  <https://www.npmjs.com/settings/~/tokens> with read-and-write permission and
-  **"Bypass 2FA" enabled**, then set it as `//registry.npmjs.org/:_authToken` in
-  `~/.npmrc` locally and as the `NPM_TOKEN` secret for the `publish` workflow.
+- **Token, for the bootstrap publish only:** a **Granular Access Token** at
+  <https://www.npmjs.com/settings/~/tokens>. The settings matter, and two of the
+  three traps below produce a 403 that looks like a 2FA problem but is not.
 
-A token without the bypass permission fails the workflow with this same 403, so
-`NPM_TOKEN` must be the granular bypass-2FA token, not a classic one.
+### Choosing token settings — three traps
+
+The registry reports these very differently, so read the message before changing
+anything:
+
+| Error on `PUT` | Real cause |
+|---|---|
+| `Two-factor authentication or granular access token with bypass 2fa enabled is required` | The token cannot satisfy 2FA. Tick **Bypass 2FA**. |
+| `You may not perform that action with these credentials` | The token authenticated but lacks permission. Not a 2FA problem at all. |
+| `409 Conflict — Failed to save packument` | Transient. Nothing is misconfigured; wait a minute and retry. |
+
+The middle row has two causes, both silent:
+
+- **Permissions: "Read and write (stage only)"** — added 2026-09-18, and npm
+  rejects direct `npm publish` with it *even when bypass 2FA is enabled*. Use
+  plain **Read and write**.
+- **Packages: a select list.** While a package name has no published versions it
+  may not be selectable, so a scoped token silently cannot cover it. Use **All
+  packages**.
+
+So the working bootstrap token is: **Read and write** (not stage-only), **All
+packages**, **Bypass 2FA enabled**, expiry 30–90 days.
+
+### This whole path is being retired
+
+Bypass-2FA tokens **lose direct publishing in January 2027**
+([changelog](https://github.blog/changelog/2026-07-31-restricting-npm-bypass-2fa-granular-access-tokens/)).
+The replacement is trusted publishing (OIDC), which is what `publish.yml` now
+uses. Two things about it are worth knowing:
+
+- **`actions/setup-node` must not set `registry-url`.** It writes an `.npmrc`
+  containing a `NODE_AUTH_TOKEN` placeholder, and that placeholder overrides
+  npm's native OIDC exchange, so the job fails on auth with nothing wrong with
+  the trusted publisher. Keep `id-token: write` and `--provenance`; drop
+  `registry-url`.
+- **OIDC cannot publish a package's first version.** npm requires the package to
+  exist before its settings page can enable trusted publishing
+  ([npm/cli#8544](https://github.com/npm/cli/issues/8544), still open). Hence the
+  one-off token above: publish once, then configure the trusted publisher, then
+  drop the token entirely.
 
 ## Release checklist
 
 1. `npm run check` passes — tests, bundle contract, listing readiness, and the
    exact packed file set.
 2. `package.json` `version` and the `CHANGELOG.md` entry agree.
-3. Commit, then push `main`.
+3. Commit, then push `main` and the tag `v<version>`.
 4. Add the `dsh-plugin` topic and a repository description, if this is the first
    release.
-5. Publish to npm, either by creating the GitHub Release `v<version>` (which
-   triggers `.github/workflows/publish.yml`) or with the manual command above.
-6. Confirm the hub listing at
+5. Publish by creating the GitHub Release for that tag — it triggers
+   `.github/workflows/publish.yml`, which publishes over OIDC with an
+   attestation and needs no secret.
+6. Verify, don't assume:
+   ```sh
+   npm view <name> version                       # the version is live
+   npm audit signatures                          # "verified registry signature"
+                                                 # and "verified attestation"
+   git checkout v<version> && npm pack --dry-run --json   # shasum must match
+   ```
+   A direct `Invoke-WebRequest`/`curl` of the tarball URL is not a good check —
+   it can 404 from environments that npm's own client handles fine.
+7. Confirm the hub listing at
    <https://dsh-plugin.org/plugins/CetOeil/dsh-process-guard> after the next scan.
+
+If a release fails at the publish step, read the exact `PUT` error against §5
+before changing anything: a `409` is transient, a `403` naming 2FA is a token
+setting, and a `403` saying "these credentials" is a different token setting.

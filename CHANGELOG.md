@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `publish.yml` now publishes over **trusted publishing (OIDC)** instead of a
+  stored npm token. `NPM_TOKEN` and `setup-node`'s `registry-url` are both gone:
+  `registry-url` writes an `.npmrc` with a `NODE_AUTH_TOKEN` placeholder, and
+  that placeholder overrides npm's native OIDC exchange, so the job would fail
+  on auth with nothing wrong with the trusted publisher.
+- `docs/PUBLISHING.md` §5 now separates the three `PUT` failures that look alike
+  and are not: a `403` naming 2FA (a token setting), a `403` saying "these
+  credentials" (a different token setting — usually the stage-only permission,
+  added 2026-09-18, or a package-scoped token that cannot cover a name with no
+  published versions), and a `409` (transient; retry). It also records why 0.2.1
+  needed a token at all: OIDC cannot publish a package's initial version
+  (npm/cli#8544), and bypass-2FA tokens lose direct publishing in January 2027.
+
 ## [0.2.1] - 2026-09-24
 
 The first installable release. 0.2.0 was published and then unpublished 53
