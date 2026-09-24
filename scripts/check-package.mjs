@@ -3,12 +3,16 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const npmArgs = ['pack', '--dry-run', '--json', '--ignore-scripts', '--cache', join(root, '.npm-cache')];
+// `npm pack` needs a cache. Point it at the OS temp directory so the release
+// checks never write into the working tree and never touch the user's real npm
+// cache — a repo-local cache left a 500 KB directory behind on every run.
+const npmArgs = ['pack', '--dry-run', '--json', '--ignore-scripts', '--cache', join(tmpdir(), 'dsh-process-guard-npm-cache')];
 
 /**
  * Locate npm's CLI entry point so `npm pack` can run without a shell.

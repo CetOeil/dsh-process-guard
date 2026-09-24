@@ -206,8 +206,14 @@ wider permission.
 
 `files[]` ships `lib`, `cordis.patch.yml`, `docs`, `examples`, `CHANGELOG.md`,
 and `SECURITY.md`; npm adds `package.json`, `README.md`, and `LICENSE`. `test/`,
-`scripts/`, `.github/`, and `.npm-cache/` stay out, and `scripts/check-package.mjs`
-fails the build if any of them appears.
+`scripts/`, and `.github/` stay out, and `scripts/check-package.mjs` fails the
+build if any of them appears. The audit also still rejects `.npm-cache/`, which
+nothing writes any more — it is a regression guard, not a description of the
+current tree.
+
+`npm pack` needs a cache, and `check-package.mjs` points it at the OS temp
+directory rather than the working tree, so running the release checks leaves the
+checkout exactly as it found it and never touches the user's real npm cache.
 
 That means the published manifest still names `verify`, `test`, and
 `prepublishOnly` scripts whose files are not in the artifact, so `npm run check`

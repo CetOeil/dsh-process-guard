@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `scripts/check-package.mjs` points `npm pack`'s cache at the OS temp directory
+  instead of the checkout. The release checks now leave the working tree exactly
+  as they found it, rather than creating a ~500 KB `.npm-cache/` on every run.
+  The artifact audit still rejects `.npm-cache/` and `.gitignore` still lists it,
+  as regression guards rather than descriptions of the current tree.
 - `publish.yml` now publishes over **trusted publishing (OIDC)** instead of a
   stored npm token. `NPM_TOKEN` and `setup-node`'s `registry-url` are both gone:
   `registry-url` writes an `.npmrc` with a `NODE_AUTH_TOKEN` placeholder, and
