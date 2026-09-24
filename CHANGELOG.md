@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-24
+
+The first installable release. 0.2.0 was published and then unpublished 53
+minutes later, and npm never allows a name-and-version pair to be reused, so
+`dsh-process-guard@0.2.0` can never be published again. This version ships the
+same code, plus the documentation and release-check changes below.
+
 ### Changed
 
 - Reduced the release checks from 364 to 287 lines with no loss of coverage,
@@ -24,7 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     alternative, so `^MIT|Apache|…` accepted any string containing "Apache".
     Replaced with a plain SPDX-shape test.
 
+### Removed
+
+- A third-party workspace name and private session-log coordinates from the
+  incident write-up in `README.md` and `docs/DESIGN.md`. The causal chain that
+  motivates the guard is unchanged; the identifiers are gone.
+
 ## [0.2.0] - 2026-09-23
+
+**Not installable.** Published to npm at 16:50 UTC and unpublished at 17:42 UTC;
+npm does not permit a name-and-version pair to be reused, so this version can
+never be republished. See 0.2.1, which ships the same code.
 
 A correctness release for the matcher, driven by an adversarial review of
 `lib/matcher.js` and a host-integration review against `dsh` 0.1.5-rc.3. Several
@@ -125,10 +142,11 @@ protected image.
 - Documentation: `README.md`, `docs/DESIGN.md`, `docs/agents-md-snippet.md`, and
   `examples/override.cordis.patch.yml`.
 
-This version was never published to npm. The first registry release was 0.2.0,
-so `npm install dsh-process-guard@0.1.0` has nothing to resolve; the entry is
-kept because the commit it describes is in the history.
+This version was never published to npm. The first installable registry release
+is 0.2.1, so `npm install dsh-process-guard@0.1.0` has nothing to resolve; the
+entry is kept because the commit it describes is in the history.
 
-[Unreleased]: https://github.com/CetOeil/dsh-process-guard/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/CetOeil/dsh-process-guard/releases/tag/v0.2.0
+[Unreleased]: https://github.com/CetOeil/dsh-process-guard/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/CetOeil/dsh-process-guard/releases/tag/v0.2.1
+[0.2.0]: https://github.com/CetOeil/dsh-process-guard/commit/2ab8c44
 [0.1.0]: https://github.com/CetOeil/dsh-process-guard/commit/62b7517
