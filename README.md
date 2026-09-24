@@ -214,6 +214,36 @@ Or hot-disable it in your profile `cordis.patch.yml` without uninstalling:
   disabled: true
 ```
 
+## How this relates to general permission plugins
+
+This plugin is narrow on purpose, and it is worth being clear about where it
+sits. General DSH permission plugins exist and are good; none of them knows
+anything about processes.
+
+| Plugin | What it gates | Process termination |
+|---|---|---|
+| [`dsh-permission-rules`](https://github.com/PerryLink/dsh-permission-rules) | Declarative user-authored allow/deny/ask rules, plus a shipped high-risk baseline: `rm -rf /`, `mkfs`, `dd` to a device, `chmod -R 777`, setuid bits, `shutdown`/`reboot`, `git push --force`, `git reset --hard`, `curl \| sh`, fork bomb, sensitive paths | **No rule, no concept** |
+| [`safety-net` / Barricade](https://github.com/JohnXu22786/safety-net) | 41 built-in rules over `fs/`, `git/`, `shell/`, `interp/`, `sys/` — destructive filesystem and repository operations | **No rule, no concept** |
+| **this plugin** | Process termination selected by image name, wildcard, process group, or unfiltered enumeration | the whole point |
+
+Both neighbours hook the `tools/pre-execute` waterfall. This plugin can use that
+seam too (`mode: ask`), but its default is `ctx.tools.guard()`, which is
+**monotonic** — no later guard or listener can force-allow a call another guard
+denied. See `docs/DESIGN.md` §2 for why that property matters for a safety rule.
+
+They **compose rather than conflict**: the guard stage runs after the
+`tools/pre-execute` waterfall, so a general permission plugin decides first and
+this one still gets its veto.
+
+The honest caveat is mechanism, not coverage. Barricade's POSIX lexer,
+segmenter and wrapper unwrapping are more capable than this plugin's text
+matcher, which `docs/DESIGN.md` §7 admits is a heuristic. If a general gate ever
+gains a process-termination family with host-topology knowledge, it would cover
+this. Until then, the thing that is actually unique here is the **domain
+knowledge** — that `chrome`, `msedge`, `firefox`, `node`, `pwsh`, `conhost` and
+`WindowsTerminal` are the DSH host tree, and that a blanket selection is as
+dangerous as a named one.
+
 ## Related
 
 - `docs/DESIGN.md` — why the guard sits on the tool path, why not the sandbox
