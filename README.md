@@ -1,8 +1,9 @@
 # dsh-process-guard
 
 A [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) bundle that
-refuses shell commands which terminate processes **by image name** — the failure
-mode that closes the Harness GUI window in the middle of a turn.
+refuses shell commands which terminate processes **by image name, wildcard,
+process group, or unfiltered enumeration** — the failure mode that closes the
+Harness GUI window in the middle of a turn.
 
 The DSH Web GUI is a browser client on `http://127.0.0.1:3080`, and the harness
 server is a `node` process. `Get-Process chrome | Stop-Process -Force` therefore
@@ -320,7 +321,7 @@ url: https://github.com/CetOeil/dsh-process-guard
 name: CetOeil/dsh-process-guard
 category: security
 description:
-  en: Blocks DSH shell calls that terminate protected browser, terminal, or harness processes by image name, wildcard, or unfiltered enumeration.
+  en: Blocks DSH shell calls that terminate protected browser, terminal, or harness processes by image name, wildcard, process group, or unfiltered enumeration.
 ```
 
 ## License

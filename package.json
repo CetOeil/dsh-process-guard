@@ -1,7 +1,7 @@
 {
   "name": "dsh-process-guard",
   "version": "0.2.1",
-  "description": "DeepSeek Harness bundle that refuses shell commands terminating browsers or the harness's own host processes by image name.",
+  "description": "DeepSeek Harness bundle that refuses shell commands terminating browsers or the harness host by image name, wildcard, process group, or unfiltered enumeration.",
   "author": "CetOeil",
   "license": "MIT",
   "type": "module",
